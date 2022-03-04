@@ -44,23 +44,40 @@ export async function findById(id) {
   return null;
 }
 
-export async function createUser(username, password) {
+export async function createUser(name, username, password) {
   // Geymum hashað password!
-  const hashedPassword = await bcrypt.hash(password, 11);
+  console.log('name,username :>> ', name, username);
+  const hashedPassword = await bcrypt.hash(password, 11, (err, hash) => {
+    if (err) {
+      console.error('Ógilt lykilorð');
+      return null;
+    }
+
+    return hash;
+  });
 
   const q = `
     INSERT INTO
-      users (username, password)
-    VALUES ($1, $2)
-    RETURNING *
+      users (name, username, password, admin)
+    VALUES ($1, $2, $3, FALSE)
+    RETURNING name, username;
   `;
 
   try {
-    const result = await query(q, [username, hashedPassword]);
+    const result = await query(q, [name, username, hashedPassword]);
     return result.rows[0];
   } catch (e) {
     console.error('Gat ekki búið til notanda');
   }
+  // mitt
+}
 
+export async function listUsers() {
+  const q = `SELECT id, name, username FROM users`;
+  const result = await query(q);
+
+  if (result) {
+    return result.rows;
+  }
   return null;
 }

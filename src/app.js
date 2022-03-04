@@ -1,13 +1,12 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import session from 'express-session';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 import passport from './lib/login.js';
 import { isInvalid } from './lib/template-helpers.js';
 import { adminRouter } from './routes/admin-routes.js';
+import { eventRouter } from './routes/event-routes.js';
 import { indexRouter } from './routes/index-routes.js';
-
+import { usersRouter } from './routes/user-routes.js';
 dotenv.config();
 
 const {
@@ -26,12 +25,6 @@ const app = express();
 // Sér um að req.body innihaldi gögn úr formi
 app.use(express.urlencoded({ extended: true }));
 
-const path = dirname(fileURLToPath(import.meta.url));
-
-app.use(express.static(join(path, '../public')));
-app.set('views', join(path, '../views'));
-app.set('view engine', 'ejs');
-
 app.use(
   session({
     secret: sessionSecret,
@@ -49,20 +42,21 @@ app.locals = {
 };
 
 app.use('/admin', adminRouter);
+app.use('/users', usersRouter);
+app.use('/events', eventRouter);
 app.use('/', indexRouter);
 
 /** Middleware sem sér um 404 villur. */
-app.use((req, res) => {
-  const title = 'Síða fannst ekki';
-  res.status(404).render('error', { title });
+app.use((req, res, next) => {
+  const message = 'Síða fannst ekki';
+  res.status(404).send(message);
 });
-
 /** Middleware sem sér um villumeðhöndlun. */
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err);
-  const title = 'Villa kom upp';
-  res.status(500).render('error', { title });
+  const message = 'Villa kom upp';
+  res.status(500).send(message);
 });
 
 app.listen(port, () => {

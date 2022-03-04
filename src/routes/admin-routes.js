@@ -6,14 +6,14 @@ import {
   listEvent,
   listEventByName,
   listEvents,
-  updateEvent,
+  updateEvent
 } from '../lib/db.js';
 import passport, { ensureLoggedIn } from '../lib/login.js';
 import { slugify } from '../lib/slugify.js';
 import {
   registrationValidationMiddleware,
   sanitizationMiddleware,
-  xssSanitizationMiddleware,
+  xssSanitizationMiddleware
 } from '../lib/validation.js';
 
 export const adminRouter = express.Router();
@@ -22,7 +22,8 @@ async function index(req, res) {
   const events = await listEvents();
   const { user: { username } = {} } = req || {};
 
-  return res.render('admin', {
+  return res.json({
+    message: `Viðburðasíðan`,
     username,
     events,
     errors: [],
@@ -34,7 +35,7 @@ async function index(req, res) {
 
 function login(req, res) {
   if (req.isAuthenticated()) {
-    return res.redirect('/admin');
+    return res.send('Notandi nú þegar innskáður');
   }
 
   let message = '';
@@ -46,7 +47,9 @@ function login(req, res) {
     req.session.messages = [];
   }
 
-  return res.render('login', { message, title: 'Innskráning' });
+  return res.json({
+    message,
+  });
 }
 
 async function validationCheck(req, res, next) {
@@ -74,7 +77,7 @@ async function validationCheck(req, res, next) {
   }
 
   if (!validation.isEmpty() || customValidations.length > 0) {
-    return res.render('admin', {
+    return res.json({
       events,
       username,
       title: 'Viðburðir — umsjón',
@@ -113,7 +116,7 @@ async function validationCheckUpdate(req, res, next) {
   }
 
   if (!validation.isEmpty() || customValidations.length > 0) {
-    return res.render('admin-event', {
+    return res.json({
       username,
       event,
       title: 'Viðburðir — umsjón',
@@ -133,10 +136,15 @@ async function registerRoute(req, res) {
   const created = await createEvent({ name, slug, description });
 
   if (created) {
-    return res.redirect('/admin');
+    return res.json({
+      message: 'Viðburður búinn til',
+      created
+    });
   }
 
-  return res.render('error');
+  return res.json({
+    message: 'Tókst ekki að búa til viðburð',
+  });
 }
 
 async function updateRoute(req, res) {
@@ -154,10 +162,15 @@ async function updateRoute(req, res) {
   });
 
   if (updated) {
-    return res.redirect('/admin');
+    return res.json({
+      message: 'Viðburður uppfærður',
+      updated
+    });
   }
 
-  return res.render('error');
+  return res.json({
+    message: 'Tókst ekki að uppfæra viðburð'
+  });
 }
 
 async function eventRoute(req, res, next) {
@@ -170,7 +183,7 @@ async function eventRoute(req, res, next) {
     return next();
   }
 
-  return res.render('admin-event', {
+  return res.json({
     username,
     title: `${event.name} — Viðburðir — umsjón`,
     event,
@@ -197,19 +210,18 @@ adminRouter.post(
   // Þetta notar strat að ofan til að skrá notanda inn
   passport.authenticate('local', {
     failureMessage: 'Notandanafn eða lykilorð vitlaust.',
-    failureRedirect: '/admin/login',
   }),
 
   // Ef við komumst hingað var notandi skráður inn, senda á /admin
   (req, res) => {
-    res.redirect('/admin');
+    res.send('Þú hefur verið skráð/ur inn');
   }
 );
 
 adminRouter.get('/logout', (req, res) => {
   // logout hendir session cookie og session
   req.logout();
-  res.redirect('/');
+  res.send('Þú hefur verið skráð/ur út');
 });
 
 // Verður að vera seinast svo það taki ekki yfir önnur route

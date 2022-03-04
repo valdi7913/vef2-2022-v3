@@ -5,7 +5,7 @@ import { listEvent, listEvents, listRegistered, register } from '../lib/db.js';
 import {
   registrationValidationMiddleware,
   sanitizationMiddleware,
-  xssSanitizationMiddleware,
+  xssSanitizationMiddleware
 } from '../lib/validation.js';
 
 export const indexRouter = express.Router();
@@ -13,9 +13,8 @@ export const indexRouter = express.Router();
 async function indexRoute(req, res) {
   const events = await listEvents();
 
-  res.render('index', {
-    title: 'Viðburðasíðan',
-    admin: false,
+  res.json({
+    message: 'Events:',
     events,
   });
 }
@@ -30,20 +29,18 @@ async function eventRoute(req, res, next) {
 
   const registered = await listRegistered(event.id);
 
-  return res.render('event', {
-    title: `${event.name} — Viðburðasíðan`,
+  return res.json({
+    message: `${event.name} — Viðburðasíðan`,
     event,
     registered,
-    errors: [],
-    data: {},
   });
 }
 
 async function eventRegisteredRoute(req, res) {
   const events = await listEvents();
 
-  res.render('registered', {
-    title: 'Viðburðasíðan',
+  res.json({
+    message: 'Viðburðavefur',
     events,
   });
 }
@@ -64,7 +61,7 @@ async function validationCheck(req, res, next) {
   const validation = validationResult(req);
 
   if (!validation.isEmpty()) {
-    return res.render('event', {
+    return res.json({
       title: `${event.name} — Viðburðasíðan`,
       data,
       event,
@@ -88,10 +85,15 @@ async function registerRoute(req, res) {
   });
 
   if (registered) {
-    return res.redirect(`/${event.slug}`);
+    return res.json({
+      message: `Nýr viðburður skráður: ${event.slug}`,
+      registered
+    });
   }
 
-  return res.render('error');
+  return res.json({
+    message: 'Villa við að skráningu',
+  });
 }
 
 indexRouter.get('/', catchErrors(indexRoute));
@@ -105,3 +107,4 @@ indexRouter.post(
   catchErrors(registerRoute)
 );
 indexRouter.get('/:slug/thanks', catchErrors(eventRegisteredRoute));
+

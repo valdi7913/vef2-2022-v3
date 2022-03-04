@@ -33,8 +33,7 @@ export async function query(q, values = []) {
   }
 
   try {
-    const result = await client.query(q, values);
-    return result;
+    return await client.query(q, values);
   } catch (e) {
     if (nodeEnv !== 'test') {
       console.error('unable to query', e);
@@ -75,6 +74,21 @@ export async function createEvent({ name, slug, description } = {}) {
   return null;
 }
 
+export async function deleteEvent({ id } = {}) {
+  const q = `
+    DELETE FROM events
+    WHERE id = $1
+    RETURNING id, name, slug, description;
+    `;
+
+  const result = await query(q, [id]);
+  if (result) {
+    return result;
+  }
+  return null;
+}
+
+
 // Updatear ekki description, erum ekki að útfæra partial update
 export async function updateEvent(id, { name, slug, description } = {}) {
   const q = `
@@ -108,6 +122,22 @@ export async function register({ name, comment, event } = {}) {
       id, name, comment, event;
   `;
   const values = [name, comment, event];
+  const result = await query(q, values);
+
+  if (result && result.rowCount === 1) {
+    return result.rows[0];
+  }
+
+  return null;
+}
+
+export async function unregister({ id } = {}) {
+  const q = `
+    DELETE FROM registrations
+    WHERE id = $1
+    RETURNING id;
+  `;
+  const values = [id];
   const result = await query(q, values);
 
   if (result && result.rowCount === 1) {

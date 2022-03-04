@@ -57,7 +57,9 @@ export function ensureLoggedIn(req, res, next) {
     return next();
   }
 
-  return res.redirect('/admin/login');
+  return res.json({
+    message: "Þú verður að vera innskráður"
+  });
 }
 
 export default passport;
