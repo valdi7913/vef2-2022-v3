@@ -1,78 +1,62 @@
 import express from 'express';
+import { body, param } from 'express-validator';
+import xss from 'xss';
 import { catchErrors } from '../lib/catch-errors.js';
-import passport, { ensureLoggedIn } from '../lib/login.js';
-import { createUser, findById, listUsers } from "../lib/users.js";
-
+import { requireAdmin, requireLoggedIn } from '../lib/login.js';
+import {
+  idValidator,
+  nameValidator,
+  passwordValidator,
+  usernameAndPaswordValidValidator,
+  usernameValidator
+} from '../lib/validation.js';
+import { getUser, getUsers, login, registerUser } from './user-logic.js';
 export const usersRouter = express.Router();
 
-async function getUser(req, res) {
-  const user = await findById(req.params.id);
-  if (user) {
+
+const xssCreateUserSanitizationMiddleware = [
+  body('name').customSanitizer((v) => xss(v)),
+  body('username').customSanitizer((v) => xss(v)),
+  body('password').customSanitizer((v) => xss(v)),
+];
+
+const xssSanitizeParametersMiddleware = [
+  param('id').customSanitizer((v) => xss(v))
+];
+
+
+usersRouter.get('/', requireAdmin, catchErrors(getUsers));
+usersRouter.get('/me',
+  requireLoggedIn,
+  (req, res) => {
     res.json({
-      message: 'Notandi fundinn',
-      user
-    });
-  } else {
-    res.json({
-      title: 'Ekki tókst að finna notanda',
-      user
+      message: 'Þínar upplýsingar',
+      user: req.user
     });
   }
-}
-
-async function getUsers(req, res) {
-  const users = await listUsers();
-  if (users) {
-    res.json({
-      title: 'Notendur: ',
-      users,
-    });
-  } else {
-    res.json({
-      title: 'Ekki tókst að sækja notendur',
-      users,
-    });
-  }
-}
-
-async function registerUser(req, res) {
-  const { name, username, password } = req.body;
-  const user = await createUser(name, username, password);
-  if (user) {
-    res.json({
-      message: 'Notandi hefur verið búinn til',
-      user
-    });
-  } else {
-    res.json({
-      title: 'Ekki tókst að búa til notanda',
-      user
-    });
-  }
-}
-
-async function logout(req, res) {
-  req.logout();
-  res.send('Þú hefur verið skráð/ur út');
-}
-
-usersRouter.get('/', ensureLoggedIn, catchErrors(getUsers));
-usersRouter.get('/:id', ensureLoggedIn, catchErrors(getUser));
+);
 usersRouter.post('/register',
-  //TODO: bæta við sanitation
+  xssCreateUserSanitizationMiddleware,
+  nameValidator,
+  usernameValidator,
+  passwordValidator,
+  usernameAndPaswordValidValidator,
   catchErrors(registerUser)
 );
 
 usersRouter.post('/login',
-  passport.authenticate('local', {
-    failureMessage: 'Notandanafn eða lykilorð vitlaust.',
-  }),
-  (req, res) => {
-    res.json({ message: "Successfully Logged In!" });
-  });
+  xssCreateUserSanitizationMiddleware,
+  nameValidator,
+  usernameValidator,
+  passwordValidator,
+  usernameAndPaswordValidValidator,
+  catchErrors(login)
+);
 
-usersRouter.post('/logout', catchErrors(logout));
+usersRouter.get('/:id',
+  xssSanitizeParametersMiddleware,
+  requireAdmin,
+  idValidator,
+  catchErrors(getUser));
 
-usersRouter.get('/test', (req, res) => {
-  res.json({ message: 'Test' });
-});
+

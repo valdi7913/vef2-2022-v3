@@ -56,12 +56,12 @@ export async function dropSchema(dropFile = DROP_SCHEMA_FILE) {
   return query(data.toString('utf-8'));
 }
 
-export async function createEvent({ name, slug, description } = {}) {
+export async function createEvent({ name, slug, description, user } = {}) {
   const q = `
     INSERT INTO events
       (name, slug, description)
     VALUES
-      ($1, $2, $3)
+      ($1, $2, $3 ${user.id})
     RETURNING id, name, slug, description;
   `;
   const values = [name, slug, description];
@@ -88,7 +88,6 @@ export async function deleteEvent({ id } = {}) {
   return null;
 }
 
-
 // Updatear ekki description, erum ekki að útfæra partial update
 export async function updateEvent(id, { name, slug, description } = {}) {
   const q = `
@@ -114,7 +113,7 @@ export async function updateEvent(id, { name, slug, description } = {}) {
 
 export async function register({ name, comment, event } = {}) {
   const q = `
-    INSERT INTO registrations
+    INSERT INTO test
       (name, comment, event)
     VALUES
       ($1, $2, $3)

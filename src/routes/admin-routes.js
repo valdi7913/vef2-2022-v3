@@ -206,7 +206,10 @@ adminRouter.post(
 adminRouter.get('/login', login);
 adminRouter.post(
   '/login',
-
+  (req, res, next) => {
+    console.log(req.body);
+    next();
+  },
   // Þetta notar strat að ofan til að skrá notanda inn
   passport.authenticate('local', {
     failureMessage: 'Notandanafn eða lykilorð vitlaust.',

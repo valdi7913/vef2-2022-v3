@@ -1,6 +1,30 @@
 import passport from 'passport';
-import { Strategy } from 'passport-local';
-import { comparePasswords, findById, findByUsername } from './users.js';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { findByUsername } from './users.js';
+
+
+const {
+  JWT_SECRET: jwtSecret,
+  TOKEN_LIFETIME: tokenLifetime = 3600,
+  TEST: test,
+} = process.env
+
+
+const opts = {
+  jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+  jwtSecret,
+  tokenLifetime
+};
+
+export const tokenOptions = {
+  expiresIn: parseInt(tokenLifetime, 10),
+}
+
+if (!jwtSecret) {
+  console.error('Vantar .env gildi');
+  process.exit(1);
+}
+
 
 /**
  * Athugar hvort username og password sé til í notandakerfi.
@@ -12,54 +36,78 @@ import { comparePasswords, findById, findByUsername } from './users.js';
  * @param {string} password Lykilorð til að athuga
  * @param {function} done Fall sem kallað er í með niðurstöðu
  */
-async function strat(username, password, done) {
-  try {
-    const user = await findByUsername(username);
+async function strat(data, next) {
+  console.log('data :>> ', data);
+  // fáum id gegnum data sem geymt er í token
+  const user = await findByUsername(data.username);
+  if (!user) { return next(false); }
+  return next(null, user);
+}
 
+export function requireAdmin(req, res, next) {
+  return passport.authenticate('jwt', { session: false }, (err, user, info) => {
+    if (err) {
+      return next(err);
+    }
     if (!user) {
-      return done(null, false);
+      const error = info.name == 'TokenExpiredError' ? 'expired token' : 'invalid token';
+      return res.status(401).json({ error });
     }
 
-    // Verður annað hvort notanda hlutur ef lykilorð rétt, eða false
-    const result = await comparePasswords(password, user.password);
-    return done(null, result ? user : false);
-  } catch (err) {
-    console.error(err);
-    return done(err);
-  }
-}
+    if (!user.admin) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
 
-// Notum local strategy með „strattinu“ okkar til að leita að notanda
-passport.use(new Strategy(strat));
-
-// getum stillt með því að senda options hlut með
-// passport.use(new Strategy({ usernameField: 'email' }, strat));
-
-// Geymum id á notanda í session, það er nóg til að vita hvaða notandi þetta er
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
-
-// Sækir notanda út frá id
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await findById(id);
-    done(null, user);
-  } catch (err) {
-    done(err);
-  }
-});
-
-// Hjálpar middleware sem athugar hvort notandi sé innskráður og hleypir okkur
-// þá áfram, annars sendir á /login
-export function ensureLoggedIn(req, res, next) {
-  if (req.isAuthenticated()) {
+    req.user = user;
     return next();
-  }
-
-  return res.json({
-    message: "Þú verður að vera innskráður"
-  });
+  })(req, res, next);
 }
+
+export function requireLoggedIn(req, res, next) {
+  return passport.authenticate('jwt', { session: false }, (err, user) => {
+    console.log('LoggedInUser :>> ', user);
+    if (err) {
+      return next(err);
+    }
+    if (!user) {
+      const error = info.name === 'TokenExpiredError'
+        ? 'expired token' : 'invalid token';
+
+      return res.status(401).json({ error });
+    }
+    res.user = user;
+    return next();
+  })(req, res, next);
+}
+
+export function addUserIfAuthenticated(req, res, next) {
+  return passport.authenticate('jwt', { session: false }, (err, user) => {
+    if (err) {
+      return next(err);
+    }
+    res.user = user;
+    return next();
+  })(req, res, next);
+}
+
+export function requireOwnershipOrAdmin(req, res, next) {
+  return passport.authenticate('jwt', { session: false }, (err, user, event) => {
+    if (err) {
+      next(err);
+    }
+    if (user.id === event.userId || user.admin) {
+      return next();
+    } else {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+  })(req, res, next);
+}
+
+export const jwtOptions = {
+  jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+  secretOrKey: jwtSecret,
+};
+
+passport.use(new Strategy(jwtOptions, strat));
 
 export default passport;

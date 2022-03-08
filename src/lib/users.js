@@ -46,15 +46,7 @@ export async function findById(id) {
 
 export async function createUser(name, username, password) {
   // Geymum hashað password!
-  console.log('name,username :>> ', name, username);
-  const hashedPassword = await bcrypt.hash(password, 11, (err, hash) => {
-    if (err) {
-      console.error('Ógilt lykilorð');
-      return null;
-    }
-
-    return hash;
-  });
+  const hashedPassword = await bcrypt.hash(password, 11);
 
   const q = `
     INSERT INTO

@@ -3,31 +3,30 @@ import express from 'express';
 import session from 'express-session';
 import passport from './lib/login.js';
 import { isInvalid } from './lib/template-helpers.js';
-import { adminRouter } from './routes/admin-routes.js';
 import { eventRouter } from './routes/event-routes.js';
-import { indexRouter } from './routes/index-routes.js';
 import { usersRouter } from './routes/user-routes.js';
+
 dotenv.config();
 
 const {
-  PORT: port = 3000,
-  SESSION_SECRET: sessionSecret,
   DATABASE_URL: connectionString,
+  JWT_SECRET: jwtSecret,
+  PORT: port = 3000,
 } = process.env;
 
-if (!connectionString || !sessionSecret) {
+if (!connectionString || !jwtSecret) {
   console.error('Vantar gögn í env');
   process.exit(1);
 }
 
 const app = express();
-
+app.use(express.json());
 // Sér um að req.body innihaldi gögn úr formi
 app.use(express.urlencoded({ extended: true }));
 
 app.use(
   session({
-    secret: sessionSecret,
+    secret: jwtSecret,
     resave: false,
     saveUninitialized: false,
     maxAge: 20 * 1000, // 20 sek
@@ -35,16 +34,15 @@ app.use(
 );
 
 app.use(passport.initialize());
-app.use(passport.session());
+
 
 app.locals = {
   isInvalid,
 };
 
-app.use('/admin', adminRouter);
 app.use('/users', usersRouter);
 app.use('/events', eventRouter);
-app.use('/', indexRouter);
+
 
 /** Middleware sem sér um 404 villur. */
 app.use((req, res, next) => {
